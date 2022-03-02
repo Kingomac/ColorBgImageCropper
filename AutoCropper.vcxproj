@@ -158,6 +158,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ColorBgImageCropper.cpp" />
+    <ClCompile Include="Arguments.cpp" />
+    <ClCompile Include="Crop.cpp" />
+    <ClCompile Include="util.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Arguments.hpp" />
+    <ClInclude Include="util.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

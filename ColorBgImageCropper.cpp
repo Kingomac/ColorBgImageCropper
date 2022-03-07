@@ -1,14 +1,11 @@
 #include <iostream>
 #include <fstream>
 #include "Arguments.hpp"
+#include "Crop.hpp"
 using namespace cv;
 using namespace std;
 int main(int argc, char** argv)
 {
-
-	for (int i = 0; i < argc; i++) {
-		cout << "i = " << i << "\t" << argv[i] << endl;
-	}
 
 	if (argc <= 1)
 	{
@@ -30,6 +27,9 @@ int main(int argc, char** argv)
 		cout << "Cannot read input file" << endl;
 		return -1;
 	}
+
+	crop_transparent(args);
+	
 
 	return 0;
 }

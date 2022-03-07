@@ -4,11 +4,15 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
+#include <iostream>
+#include <chrono>
+#include <concurrent_vector.h>
 
 using namespace cv;
 using namespace std;
 
 void crop_transparent(ARGUMENTS args) {
+	auto t1 = chrono::high_resolution_clock::now();
 	Mat image;
 	image = imread(args.input_file, IMREAD_UNCHANGED); // Read the file
 	Mat newimg = Mat::zeros(image.rows, image.cols, image.type());
@@ -27,46 +31,90 @@ void crop_transparent(ARGUMENTS args) {
 
 	bool notFinished = true;
 
-	for (int i = 0; i < image_size.height && notFinished; i++) {
-		for (int j = 0; j < image_size.width && notFinished; j++) {
-			if (image.at<Vec4b>(i, j)[3] > 0) {
-				cropTop = i;
-				notFinished = false;
-			}
-		}
-	}
+	int crop[4];
 
-	notFinished = true;
-	for (int i = image_size.height - 1; i >= 0 && notFinished; i--) {
-		for (int j = 0; j < image_size.width && notFinished; j++) {
-			if (image.at<Vec4b>(i, j)[3] > 0) {
-				cropBottom = i;
-				notFinished = false;
-			}
-		}
-	}
+	//cv::parallel_for_(Range(0, 4), [&](const Range& sideRange) {
+	Concurrency::concurrent_vector<int> a;
+	cv::parallel_for_(Range(0, image_size.width), [&](const Range& rangeHeight) {
+		bool finished = false;
 
-	notFinished = true;
-	for (int j = 0; j < image_size.width && notFinished; j++) {
-		for (int i = 0; i < image_size.height && notFinished; i++) {
-			if (image.at<Vec4b>(i, j)[3] > 0) {
-				cropLeft = j;
-				notFinished = false;
-			}
+		for (int j = rangeHeight.start; j < rangeHeight.end; j += 2) {
+			cv::parallel_for_(Range(0, image_size.height), [&](const Range& range) {
+				for (int i = range.start; i < range.end && !finished; i++) {
+					if (image.at<Vec4b>(i, j)[3] > 0) {
+						a.push_back(i);
+						finished = true;
+					}
+				}
+				});
+		}
+		});
+	cout << "vec_size: " << a.size() << endl;
+	int min = image_size.height;
+	for (auto i = a.begin(); i != a.end(); i++) {
+		if (*i < min) {
+			min = *i;
 		}
 	}
+	cropTop = min;
+	a.clear();
 
-	notFinished = true;
-	for (int j = image_size.width - 1; j >= 0 && notFinished; j--) {
-		for (int i = 0; i < image_size.height && notFinished; i++) {
-			if (image.at<Vec4b>(i, j)[3] > 0) {
-				cropRight = j;
-				notFinished = false;
-			}
+
+
+	/*cv::parallel_for_(Range(image_size.height-1, 0), [&](const Range& rangeHeight) {
+		bool finished = false;
+		for (int i = rangeHeight.start; i >= rangeHeight.end; i--) {
+
+			cv::parallel_for_(Range(0, image_size.width), [&](const Range& range) {
+				for (int j = range.start; j < range.end && !finished; j++) {
+					if (image.at<Vec4b>(i, j)[3] > 0) {
+						cropBottom = i;
+						finished = true;
+					}
+				}
+				});
 		}
-	}
+		});
+
+	cv::parallel_for_(Range(0, image_size.width), [&](const Range& rangeHeight) {
+		bool finished = false;
+		for (int j = rangeHeight.start; j >= rangeHeight.end; j++) {
+
+			cv::parallel_for_(Range(0, image_size.height), [&](const Range& range) {
+				for (int i = range.start; i < range.end && !finished; i++) {
+					if (image.at<Vec4b>(i, j)[3] > 0) {
+						cropLeft = i;
+						finished = true;
+					}
+				}
+				});
+		}
+		});
+
+	cv::parallel_for_(Range(image_size.width-1, 0), [&](const Range& rangeHeight) {
+		bool finished = false;
+		for (int j = rangeHeight.start; j >= rangeHeight.end; j--) {
+
+			cv::parallel_for_(Range(0, image_size.height), [&](const Range& range) {
+				for (int i = range.start; i < range.end && !finished; i++) {
+					if (image.at<Vec4b>(i, j)[3] > 0) {
+						cropRight = i;
+						finished = true;
+					}
+				}
+				});
+		}
+		});*/
+		//});
+
 
 	Mat cropped = image(Range(cropTop, cropBottom), Range(cropLeft, cropRight));
+
+	auto t2 = chrono::high_resolution_clock::now();
+
+	auto ms = chrono::duration_cast<chrono::milliseconds>(t2 - t1);
+
+	cout << "Execution time: " << ms.count() << "ms" << endl;
 
 	cout << "cropTop: " << cropTop << endl;
 	cout << "cropBottom: " << cropBottom << endl;
